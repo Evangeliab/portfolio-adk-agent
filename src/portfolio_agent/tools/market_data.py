@@ -1,10 +1,17 @@
 """Tools for fetching market data from Yahoo Finance."""
 
 import yfinance as yf
+import pandas as pd
+import logging
 from typing import Optional
 from portfolio_agent.models.stock_data import CompanyData, PriceHistory, FinancialStatements
+from portfolio_agent.tools.retry_utils import yfinance_retry
+from portfolio_agent.tools.yfinance_utils import create_yf_ticker
+from portfolio_agent.tools.cache_utils import ttl_cache
 
 
+@yfinance_retry
+@ttl_cache(seconds=300, maxsize=128)
 def get_stock_info(ticker: str) -> dict:
     """
     Retrieves basic company information for a given stock ticker.
@@ -20,7 +27,7 @@ def get_stock_info(ticker: str) -> dict:
     print(f"--- Tool: get_stock_info called for ticker: {ticker} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         if not info or 'symbol' not in info:
@@ -55,6 +62,8 @@ def get_stock_info(ticker: str) -> dict:
         }
 
 
+@yfinance_retry
+@ttl_cache(seconds=300, maxsize=128)
 def get_price_history(ticker: str, period: str = "1y") -> dict:
     """
     Retrieves historical price data and current price information.
@@ -70,7 +79,7 @@ def get_price_history(ticker: str, period: str = "1y") -> dict:
     print(f"--- Tool: get_price_history called for {ticker}, period: {period} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         # Get current price information
@@ -96,17 +105,64 @@ def get_price_history(ticker: str, period: str = "1y") -> dict:
                 "error_message": f"No historical data available for '{ticker}' for period '{period}'"
             }
         
+        # Validate required columns exist
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        missing_columns = [col for col in required_columns if col not in hist.columns]
+        
+        if missing_columns:
+            return {
+                "status": "error",
+                "error_message": (
+                    f"Historical data for '{ticker}' is missing required columns: "
+                    f"{', '.join(missing_columns)}. Available columns: {', '.join(hist.columns)}"
+                )
+            }
+        
+        # Validate data quality - check for NaN values in critical columns
+        if hist[['Close']].isna().all().any():
+            return {
+                "status": "error",
+                "error_message": f"Historical data for '{ticker}' contains all NaN values in Close prices"
+            }
+        
         # Convert to list of dicts for easier consumption
         history_data = []
         for date, row in hist.iterrows():
-            history_data.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "open": float(row['Open']),
-                "high": float(row['High']),
-                "low": float(row['Low']),
-                "close": float(row['Close']),
-                "volume": int(row['Volume'])
-            })
+            # Skip rows with NaN close price
+            if pd.isna(row['Close']):
+                continue
+            
+            try:
+                price_point = {
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": float(row['Open']) if not pd.isna(row['Open']) else float(row['Close']),
+                    "high": float(row['High']) if not pd.isna(row['High']) else float(row['Close']),
+                    "low": float(row['Low']) if not pd.isna(row['Low']) else float(row['Close']),
+                    "close": float(row['Close']),
+                    "volume": int(row['Volume']) if not pd.isna(row['Volume']) else 0
+                }
+                
+                # Validate OHLC relationship
+                if price_point['high'] < price_point['low']:
+                    logging.warning(f"Invalid OHLC data for {ticker} on {date}: High < Low")
+                    continue
+                
+                # Validate positive prices
+                if any(price_point[k] <= 0 for k in ['open', 'high', 'low', 'close']):
+                    logging.warning(f"Invalid price data for {ticker} on {date}: Non-positive prices")
+                    continue
+                
+                history_data.append(price_point)
+                
+            except (ValueError, TypeError) as e:
+                logging.warning(f"Error processing price data for {ticker} on {date}: {e}")
+                continue
+        
+        if not history_data:
+            return {
+                "status": "error",
+                "error_message": f"No valid historical data points for '{ticker}' after validation"
+            }
         
         print(f"--- Tool: Retrieved {len(history_data)} days of price history ---")
         return {
@@ -123,6 +179,8 @@ def get_price_history(ticker: str, period: str = "1y") -> dict:
         }
 
 
+@yfinance_retry
+@ttl_cache(seconds=300, maxsize=128)
 def get_financial_statements(ticker: str) -> dict:
     """
     Retrieves financial statement data (income statement, balance sheet, cash flow).
@@ -136,7 +194,7 @@ def get_financial_statements(ticker: str) -> dict:
     print(f"--- Tool: get_financial_statements called for ticker: {ticker} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         financials = FinancialStatements(

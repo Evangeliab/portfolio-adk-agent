@@ -65,10 +65,20 @@ def calculate_rsi(price_data: List[Dict], period: int = 14) -> dict:
     
     try:
         if not price_data or len(price_data) < period + 1:
-            return {"status": "error", "error_message": f"Insufficient data for RSI calculation (need {period + 1} points)"}
+            return {
+                "status": "error", 
+                "error_message": f"Insufficient data for RSI calculation (need {period + 1} points)"
+            }
         
         df = pd.DataFrame(price_data)
-        df['close'] = pd.to_numeric(df['close'])
+        df['close'] = pd.to_numeric(df['close'], errors='coerce')
+        
+        # Check for NaN values after conversion
+        if df['close'].isna().any():
+            return {
+                "status": "error",
+                "error_message": "Invalid price data - contains non-numeric values"
+            }
         
         # Calculate price changes
         delta = df['close'].diff()
@@ -77,16 +87,42 @@ def calculate_rsi(price_data: List[Dict], period: int = 14) -> dict:
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         
-        # Calculate RS and RSI
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
+        # Get the most recent gain and loss
+        current_gain = gain.iloc[-1]
+        current_loss = loss.iloc[-1]
         
-        current_rsi = float(rsi.iloc[-1])
+        # Handle edge cases for RSI calculation
+        if pd.isna(current_gain) or pd.isna(current_loss):
+            return {
+                "status": "error",
+                "error_message": "Insufficient data for RSI calculation after rolling window"
+            }
+        
+        # Calculate RSI with zero-division protection
+        if current_loss == 0:
+            if current_gain == 0:
+                # No price movement at all
+                current_rsi = 50.0
+            else:
+                # All gains, no losses
+                current_rsi = 100.0
+        elif current_gain == 0:
+            # All losses, no gains
+            current_rsi = 0.0
+        else:
+            # Normal calculation
+            rs = current_gain / current_loss
+            current_rsi = 100 - (100 / (1 + rs))
+        
+        # Validate RSI is in valid range
+        if not 0 <= current_rsi <= 100:
+            logging.warning(f"RSI out of valid range: {current_rsi}")
+            current_rsi = max(0, min(100, current_rsi))  # Clamp to 0-100
         
         print(f"--- Tool: Calculated RSI = {current_rsi:.2f} ---")
         return {
             "status": "success",
-            "data": {"rsi": current_rsi if not pd.isna(current_rsi) else None}
+            "data": {"rsi": round(current_rsi, 2)}
         }
         
     except Exception as e:

@@ -3,8 +3,13 @@
 import yfinance as yf
 from typing import Optional
 from portfolio_agent.models.analysis import FinancialMetrics
+from portfolio_agent.tools.retry_utils import yfinance_retry
+from portfolio_agent.tools.yfinance_utils import create_yf_ticker
+from portfolio_agent.tools.cache_utils import ttl_cache
 
 
+@yfinance_retry
+@ttl_cache(seconds=300, maxsize=128)
 def calculate_valuation_ratios(ticker: str) -> dict:
     """
     Calculates valuation ratios (P/E, P/B, P/S, PEG, EV ratios).
@@ -18,7 +23,7 @@ def calculate_valuation_ratios(ticker: str) -> dict:
     print(f"--- Tool: calculate_valuation_ratios called for ticker: {ticker} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         metrics = {
@@ -47,6 +52,8 @@ def calculate_valuation_ratios(ticker: str) -> dict:
         }
 
 
+@yfinance_retry
+@ttl_cache(seconds=300, maxsize=128)
 def calculate_profitability_metrics(ticker: str) -> dict:
     """
     Calculates profitability metrics (margins, ROA, ROE).
@@ -60,7 +67,7 @@ def calculate_profitability_metrics(ticker: str) -> dict:
     print(f"--- Tool: calculate_profitability_metrics called for ticker: {ticker} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         metrics = {
@@ -92,6 +99,8 @@ def calculate_profitability_metrics(ticker: str) -> dict:
         }
 
 
+@yfinance_retry
+@ttl_cache(seconds=300, maxsize=128)
 def calculate_growth_metrics(ticker: str) -> dict:
     """
     Calculates growth metrics (revenue growth, earnings growth).
@@ -105,7 +114,7 @@ def calculate_growth_metrics(ticker: str) -> dict:
     print(f"--- Tool: calculate_growth_metrics called for ticker: {ticker} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         metrics = {

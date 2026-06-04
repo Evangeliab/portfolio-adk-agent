@@ -2,6 +2,8 @@
 
 import yfinance as yf
 from typing import Optional, List, Dict
+from portfolio_agent.tools.retry_utils import yfinance_retry
+from portfolio_agent.tools.yfinance_utils import create_yf_ticker
 
 
 # Common company name to ticker mappings for quick resolution
@@ -45,6 +47,7 @@ COMMON_TICKERS = {
 }
 
 
+@yfinance_retry
 def resolve_ticker(query: str) -> dict:
     """
     Converts natural language stock queries to ticker symbols.
@@ -76,7 +79,7 @@ def resolve_ticker(query: str) -> dict:
         if len(potential_ticker) <= 5 and potential_ticker.isalpha():
             # Try to validate it's a real ticker
             try:
-                stock = yf.Ticker(potential_ticker)
+                stock = create_yf_ticker(potential_ticker)
                 info = stock.info
                 if info and 'symbol' in info:
                     company_name = info.get('longName', info.get('shortName', potential_ticker))
@@ -94,7 +97,7 @@ def resolve_ticker(query: str) -> dict:
         # Check common mappings first
         for name, ticker in COMMON_TICKERS.items():
             if name in query_lower or query_lower in name:
-                stock = yf.Ticker(ticker)
+                stock = create_yf_ticker(ticker)
                 info = stock.info
                 company_name = info.get('longName', info.get('shortName', ticker))
                 print(f"--- Tool: Found in common mappings: {ticker} ({company_name}) ---")
@@ -119,7 +122,7 @@ def resolve_ticker(query: str) -> dict:
             if len(word) > 2:  # Skip very short words
                 ticker_candidate = word.upper()
                 try:
-                    stock = yf.Ticker(ticker_candidate)
+                    stock = create_yf_ticker(ticker_candidate)
                     info = stock.info
                     if info and 'symbol' in info:
                         potential_matches.append({
@@ -161,6 +164,7 @@ def resolve_ticker(query: str) -> dict:
         }
 
 
+@yfinance_retry
 def validate_ticker(ticker: str) -> dict:
     """
     Validates that a ticker symbol exists and is tradable.
@@ -174,7 +178,7 @@ def validate_ticker(ticker: str) -> dict:
     print(f"--- Tool: validate_ticker called for: {ticker} ---")
     
     try:
-        stock = yf.Ticker(ticker)
+        stock = create_yf_ticker(ticker)
         info = stock.info
         
         if not info or 'symbol' not in info:
