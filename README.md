@@ -4,21 +4,16 @@ A sophisticated multi-agent investment research system built with Google's ADK (
 
 ## Features
 
-- 🤖 **Multi-Agent Architecture**: Specialized agents for different analysis types
-- 💬 **Natural Language Queries**: Ask "analyze Apple stock" instead of needing ticker symbols
+- 🤖 **Multi-Agent Architecture**: Specialized agents for different analysis types.
+- 💬 **Natural Language Queries**: Ask "analyze Apple stock" instead of needing ticker symbols.
 - 📊 **Comprehensive Analysis**:
-  - Fundamental analysis (financial metrics, valuation ratios)
-  - Technical analysis (moving averages, RSI, MACD)
-  - News sentiment (via Google Search grounding)
-- 📝 **Detailed Reports**: AI-generated investment reports with recommendations
-- 🔄 **Session State**: Tracks research progress across agent interactions
-- 🛡️ **Production-Ready Reliability**:
-  - Automatic retry with exponential backoff (3 attempts)
-  - Timeout protection (prevents infinite loops and hanging)
-  - Comprehensive error handling with user-friendly messages
-  - Data validation and edge case handling
-  - TTL caching (5-minute fresh data, no stale results)
-  - Handles API failures, network issues, and malformed data gracefully
+  - Fundamental analysis (financial metrics, valuation ratios, profitability metrics).
+  - Technical analysis (moving averages, RSI, MACD trend indicators).
+  - News sentiment (grounded via Google Search integration).
+- 📝 **Detailed Reports**: AI-generated investment reports with recommendations.
+- 🔄 **Session State**: Tracks research progress across agent interactions.
+
+---
 
 ## Architecture
 
@@ -39,87 +34,104 @@ Report Generator Agent
 Final Investment Report with Recommendation
 ```
 
+---
+
 ## Prerequisites
 
 - Python 3.11 or higher
 - [UV](https://github.com/astral-sh/uv) package manager
 - Google API Key (for Gemini models and Google Search grounding)
-- Optional: OpenAI or Anthropic API keys for multi-model support
+
+---
 
 ## Installation
 
-1. **Clone the repository** (or navigate to project directory)
+1. **Clone the repository** (or navigate to the project directory)
 
 2. **Install UV** (if not already installed):
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
+   # Or using Homebrew:
+   brew install uv
    ```
 
-3. **Create and activate virtual environment with UV**:
+3. **Synchronize dependencies and setup virtualenv**:
    ```bash
-   uv venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   # Automatically creates a .venv and installs all dependencies and CLI tools
+   uv sync --all-extras
    ```
 
-4. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
-
-5. **Set up environment variables**:
+4. **Set up environment variables**:
    ```bash
    cp .env.example .env
-   # Edit .env and add your API keys
+   # Edit .env and add your GOOGLE_API_KEY
    ```
+
+---
 
 ## Configuration
 
-Edit `.env` file with your API keys:
+Edit the `.env` file with your authentication details:
 
+### Option 1: Gemini Developer API (Default)
 ```env
-# Required
 GOOGLE_API_KEY=your_google_api_key_here
+```
+> [!TIP]
+> Get your Google API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
-# Optional (for multi-model support)
+### Option 2: GCP Vertex AI
+```env
+GOOGLE_GENAI_USE_VERTEXAI=True
+GOOGLE_CLOUD_PROJECT=your_gcp_project_id_here
+GOOGLE_CLOUD_LOCATION=us-central1
+```
+> [!IMPORTANT]
+> When using Vertex AI, ensure you are authenticated locally with GCP using:
+> ```bash
+> gcloud auth application-default login
+> ```
+
+### Optional Multi-Model Config
+```env
 OPENAI_API_KEY=your_openai_key
 ANTHROPIC_API_KEY=your_anthropic_key
 ```
 
-Get your Google API key from: https://aistudio.google.com/app/apikey
+---
 
 ## Usage
 
-### CLI Interface
+You can run the agent either through the dedicated CLI shortcut or using standard Python module execution.
 
-Run a stock analysis:
+### CLI shortcut (Recommended)
+```bash
+uv run portfolio-agent "analyze apple stock"
+```
 
+### Python module execution
 ```bash
 uv run python -m portfolio_agent.main "analyze apple stock"
 ```
 
-Or with a direct ticker:
-
-```bash
-uv run python -m portfolio_agent.main "research MSFT"
-```
-
 ### Example Queries
-
 ```bash
 # Natural language
-uv run python -m portfolio_agent.main "analyze Tesla"
-uv run python -m portfolio_agent.main "what do you think about Microsoft stock?"
-uv run python -m portfolio_agent.main "research NVIDIA"
+uv run portfolio-agent "analyze Tesla"
+uv run portfolio-agent "what do you think about Microsoft stock?"
+uv run portfolio-agent "research NVIDIA"
 
 # Direct ticker symbols
-uv run python -m portfolio_agent.main "analyze AAPL"
-uv run python -m portfolio_agent.main "TSLA analysis"
+uv run portfolio-agent "analyze AAPL"
+uv run portfolio-agent "TSLA analysis"
 ```
+
+---
 
 ## Project Structure
 
 ```
-portfolio_management_agent/
+portfolio-management-agent/
 ├── src/
 │   └── portfolio_agent/
 │       ├── agents/           # Agent definitions
@@ -131,185 +143,106 @@ portfolio_management_agent/
 │       │   └── report_generator.py
 │       ├── tools/            # Agent tools
 │       │   ├── market_data.py
-│       │   ├── financial_calc.py
+│       │   ├── fundamental_analysis.py
 │       │   ├── technical_analysis.py
-│       │   ├── ticker_resolver.py
-│       │   ├── news_search.py
-│       │   ├── retry_utils.py      # Retry logic
-│       │   ├── yfinance_utils.py   # Timeout config
-│       │   └── cache_utils.py      # TTL cache
+│       │   └── ticker_resolution.py
 │       ├── models/           # Pydantic schemas
 │       │   ├── stock_data.py
 │       │   ├── analysis.py
-│       │   ├── reports.py
+│       │   ├── report.py
 │       │   └── state.py
-│       ├── prompts/          # Agent instruction templates
-│       │   ├── coordinator.jinja
-│       │   ├── ticker_resolver.jinja
-│       │   ├── fundamental_analyst.jinja
-│       │   ├── technical_analyst.jinja
-│       │   ├── news_analyst.jinja
-│       │   ├── report_generator.jinja
-│       │   └── loader.py
+│       ├── prompts/          # Jinja prompt templates
+│       │   ├── loader.py
+│       │   └── ... jinja files
 │       ├── config/
-│       │   ├── settings.py
-│       │   └── logging_config.py
+│       │   └── settings.py
 │       └── main.py
-├── test_p1_fixes.py      # P1 critical tests
-├── test_basic.py         # Basic integration tests
-├── pyproject.toml
+├── tests/                    # Test suite
+│   ├── __init__.py
+│   └── test_basic.py
+├── pyproject.toml            # Project dependencies & scripts metadata
+├── .env.example
 └── README.md
 ```
 
-## Agents
+---
+
+## Agents Overview
 
 ### 1. Research Coordinator
-- Orchestrates the entire research workflow
-- Routes queries to appropriate specialist agents
-- Synthesizes final recommendations
+- Orchestrates the entire research workflow.
+- Routes queries to appropriate specialist agents.
+- Synthesizes final recommendations.
 
 ### 2. Ticker Resolver
-- Converts natural language to stock tickers
-- Handles queries like "analyze Apple" → "AAPL"
+- Converts natural language to stock tickers (e.g., "analyze Apple" → "AAPL").
 
 ### 3. Fundamental Analyst
-- Analyzes financial statements
-- Calculates valuation ratios (P/E, P/B, etc.)
-- Evaluates profitability and growth metrics
+- Analyzes financial statements and valuation ratios (P/E, P/B, etc.).
+- Evaluates profitability and growth metrics.
 
 ### 4. Technical Analyst
-- Analyzes price trends and patterns
-- Calculates technical indicators (RSI, MACD, moving averages)
-- Identifies support/resistance levels
+- Analyzes price trends, support/resistance levels, and indicators (RSI, MACD, SMAs).
 
 ### 5. News Sentiment Analyst
-- Uses Google Search grounding for recent news
-- Analyzes sentiment and key themes
-- Identifies market-moving developments
+- Integrates Google Search grounding to retrieve and analyze recent news.
+- Evaluates market sentiment.
 
 ### 6. Report Generator
-- Synthesizes all findings
-- Generates comprehensive investment report
-- Provides actionable recommendations
+- Synthesizes all findings into a structured, markdown-formatted investment report.
 
-## Reliability & Robustness
+---
 
-The system includes production-grade reliability features:
-
-### Error Handling & Recovery
-- **Automatic Retry**: API failures automatically retry up to 3 times with exponential backoff (2-10s)
-- **Timeout Protection**: All operations have timeouts (5s connect, 30s read, 180s analysis)
-- **Graceful Degradation**: Failures return user-friendly error messages instead of crashes
-- **Comprehensive Exception Handling**: Every component handles errors appropriately
-
-### Data Quality & Validation
-- **Input Validation**: Query validation, ticker format checks, data type verification
-- **DataFrame Validation**: Validates required columns, checks for NaN values, validates OHLC relationships
-- **Edge Case Handling**: Handles division by zero, missing data, delisted stocks, penny stocks
-- **Price Validation**: Ensures positive prices, validates high ≥ low, detects anomalies
-
-### Performance & Caching
-- **TTL Cache**: 5-minute cache prevents stale data while improving performance
-- **Smart Eviction**: LRU eviction when cache is full
-- **No Error Caching**: Failed requests don't pollute the cache
-
-### Testing
-- **10 P1 Tests**: Comprehensive test suite for critical functionality
-- **Edge Case Coverage**: Tests division by zero, all gains/losses, invalid data
-- **Cache Testing**: Validates TTL expiry, eviction, hit/miss behavior
-
-Run tests:
-```bash
-uv run pytest test_p1_fixes.py -v
-```
-
-## Technologies
-
-- **Google ADK**: Multi-agent framework
-- **Gemini**: LLM for agent intelligence
-- **Yahoo Finance**: Market data source
-- **Pydantic**: Data validation
-- **Tenacity**: Retry logic with exponential backoff
-- **UV**: Fast Python package manager
-- **Pytest**: Testing framework
-
-## Development
+## Development & Testing
 
 ### Running Tests
-
+The project uses `pytest` and `pytest-asyncio` for testing:
 ```bash
-# Run all tests
-uv run pytest
-
-# Run P1 critical tests with verbose output
-uv run pytest test_p1_fixes.py -v
-
-# Run with coverage
-uv run pytest test_p1_fixes.py --cov=portfolio_agent.tools
-
-# Run specific test class
-uv run pytest test_p1_fixes.py::TestRSIEdgeCases -v
+uv run pytest tests/
 ```
 
-The test suite includes:
-- **RSI Edge Cases**: Division by zero, all gains/losses, no movement, invalid data
-- **TTL Cache**: Cache hit/miss, expiry, eviction, argument handling
-- **Data Validation**: DataFrame validation, error handling
-
-### Code Formatting
-
+### Code Formatting & Linting
 ```bash
-uv run black src/
+# Check formatting
 uv run ruff check src/
+
+# Format code
+uv run black src/
 ```
 
-### Verification
+---
 
-```bash
-# Verify all imports work
-python -c "from portfolio_agent.tools.retry_utils import yfinance_retry; \
-from portfolio_agent.tools.yfinance_utils import create_yf_ticker; \
-from portfolio_agent.tools.cache_utils import ttl_cache; \
-print('✅ All utilities OK')"
+## Troubleshooting & Debugging
 
-# Test basic functionality (requires API key)
-uv run python -m portfolio_agent.main "analyze AAPL"
+### Enable Debug Logging
+If you need to trace how the LLM or ADK runners process events internally, enable debug logging by adding this at the top of `src/portfolio_agent/main.py`:
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
 ```
+
+### Common Issues
+
+* **Issue: "GOOGLE_API_KEY is required"**
+  * **Solution:** Verify that your `.env` file exists in the root directory, matches `.env.example`, and has a valid key configured without quotes.
+
+* **Issue: Yahoo Finance rate limits**
+  * **Solution:** Yahoo Finance API has transient rate limits. Wait a few minutes or reduce the frequency of query runs.
+
+* **Issue: Import/Module errors in IDE (like red underlines)**
+  * **Solution:** Run `uv sync --all-extras` in your workspace terminal to ensure all optional dev packages like `pytest` are fully installed in the local virtual environment.
+
+---
 
 ## Limitations
 
-- Data from Yahoo Finance may be delayed 15-20 minutes
-- Focuses on US stocks initially (limited international ticker support)
-- Uses InMemorySessionService (no persistence across restarts)
-- Free data sources only (no Bloomberg/Reuters integration)
-- News sentiment relies on Google Search grounding (quality depends on ADK capabilities)
-- Ticker resolution limited to ~34 common companies (fuzzy matching not yet implemented)
+- Data from Yahoo Finance may be delayed by 15-20 minutes.
+- Focuses on US stocks initially.
+- Uses `InMemorySessionService` (no persistence across restarts).
+- Free tier API rate-limiting restrictions apply.
 
-## Known Reliable Behaviors
-
-✅ **Handles gracefully:**
-- API failures and network issues (automatic retry)
-- Timeouts and hanging requests (automatic timeout)
-- Invalid tickers and delisted stocks (clear error messages)
-- Malformed data from Yahoo Finance (validation and filtering)
-- Division by zero in technical indicators (edge case handling)
-- Stale cached data (5-minute TTL)
-- User input errors (validation with helpful feedback)
-
-## Future Enhancements
-
-- [ ] Portfolio-level analysis (multiple stocks)
-- [ ] Backtesting strategies
-- [ ] Real-time alerting
-- [ ] Web UI interface
-- [ ] Database persistence
-- [ ] International market support
-- [ ] Integration with brokerage APIs
+---
 
 ## License
 
 MIT License
-
-## Contributing
-
-Contributions welcome! Please feel free to submit a Pull Request.

@@ -102,7 +102,7 @@ def create_research_coordinator() -> Agent:
             news_analyst,
             report_generator
         ],
-        before_model_llm_request=input_validation_callback
+        before_model_callback=input_validation_callback
     )
     
     return agent

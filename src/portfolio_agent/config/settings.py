@@ -7,6 +7,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _get_bool_env(name: str, default: bool) -> bool:
+    """Helper to parse boolean values from environment variables."""
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return val.lower() in ("true", "1", "yes", "on")
+
+
 class Settings:
     """Application settings."""
     
@@ -16,14 +24,14 @@ class Settings:
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     
     # ADK Configuration
-    GOOGLE_GENAI_USE_VERTEXAI: str = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "False")
+    GOOGLE_GENAI_USE_VERTEXAI: bool = _get_bool_env("GOOGLE_GENAI_USE_VERTEXAI", False)
+    GOOGLE_CLOUD_PROJECT: str = os.getenv("GOOGLE_CLOUD_PROJECT", "")
+    GOOGLE_CLOUD_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     
     # Model Configuration
-    # Use Gemini Flash for specialist agents (cost-effective)
-    SPECIALIST_MODEL: str = "gemini-2.0-flash-exp"
-    
-    # Use more capable model for coordinator (better reasoning)
-    COORDINATOR_MODEL: str = "gemini-2.0-flash-exp"  # Can upgrade to "gemini-exp-1206" if needed
+    # Defaults to gemini-2.0-flash but allows environment overrides
+    SPECIALIST_MODEL: str = os.getenv("SPECIALIST_MODEL", "gemini-2.0-flash")
+    COORDINATOR_MODEL: str = os.getenv("COORDINATOR_MODEL", "gemini-2.0-flash")
     
     # Session Configuration
     APP_NAME: str = "portfolio_research_agent"
@@ -35,14 +43,16 @@ class Settings:
     TECHNICAL_ANALYSIS_PERIOD: str = "6mo"    # 6 months for technical indicators
     
     # Google Search Configuration
-    ENABLE_GOOGLE_SEARCH_GROUNDING: bool = True
-    NEWS_SEARCH_DAYS: int = 30  # Look back 30 days for news
+    ENABLE_GOOGLE_SEARCH_GROUNDING: bool = _get_bool_env("ENABLE_GOOGLE_SEARCH_GROUNDING", True)
+    NEWS_SEARCH_DAYS: int = int(os.getenv("NEWS_SEARCH_DAYS", "30"))  # Look back 30 days for news
     
     @classmethod
     def validate_api_keys(cls) -> dict:
-        """Validate that required API keys are set."""
+        """Validate that required API keys or GCP Vertex AI config are set."""
+        has_vertex_config = cls.GOOGLE_GENAI_USE_VERTEXAI and bool(cls.GOOGLE_CLOUD_PROJECT)
         validation = {
             "google_api_key": bool(cls.GOOGLE_API_KEY),
+            "vertex_config": has_vertex_config,
             "openai_api_key": bool(cls.OPENAI_API_KEY),
             "anthropic_api_key": bool(cls.ANTHROPIC_API_KEY),
         }
@@ -51,8 +61,16 @@ class Settings:
     @classmethod
     def setup_environment(cls):
         """Set up environment variables for ADK."""
-        os.environ["GOOGLE_API_KEY"] = cls.GOOGLE_API_KEY
-        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = cls.GOOGLE_GENAI_USE_VERTEXAI
+        if cls.GOOGLE_API_KEY:
+            os.environ["GOOGLE_API_KEY"] = cls.GOOGLE_API_KEY
+            
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = str(cls.GOOGLE_GENAI_USE_VERTEXAI)
+        
+        if cls.GOOGLE_CLOUD_PROJECT:
+            os.environ["GOOGLE_CLOUD_PROJECT"] = cls.GOOGLE_CLOUD_PROJECT
+            
+        if cls.GOOGLE_CLOUD_LOCATION:
+            os.environ["GOOGLE_CLOUD_LOCATION"] = cls.GOOGLE_CLOUD_LOCATION
         
         if cls.OPENAI_API_KEY:
             os.environ["OPENAI_API_KEY"] = cls.OPENAI_API_KEY

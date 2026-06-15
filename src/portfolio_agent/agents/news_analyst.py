@@ -1,7 +1,8 @@
 """News Sentiment Agent - analyzes news and market sentiment using Google Search."""
 
 import logging
-from google.adk.agents import Agent, google_search
+from google.adk.agents import Agent
+from google.adk.tools import google_search
 from portfolio_agent.config.settings import settings
 from portfolio_agent.tools.news_search import search_company_news
 from portfolio_agent.prompts.loader import load_prompt
@@ -20,6 +21,11 @@ def create_news_sentiment_analyst() -> Agent:
     
     instruction = load_prompt("news_analyst.jinja")
     
+    tools = [search_company_news]
+    if settings.ENABLE_GOOGLE_SEARCH_GROUNDING:
+        print("🔍 News Analyst: Enabling Google Search Grounding tool")
+        tools.append(google_search)
+        
     agent = Agent(
         name="news_sentiment_analyst",
         model=settings.SPECIALIST_MODEL,
@@ -28,9 +34,7 @@ def create_news_sentiment_analyst() -> Agent:
             "Identifies key themes, positive and negative developments, and overall market sentiment."
         ),
         instruction=instruction,
-        tools=[search_company_news],
-        # Enable Google Search grounding for this agent
-        grounding=google_search() if settings.ENABLE_GOOGLE_SEARCH_GROUNDING else None,
+        tools=tools,
     )
     
     return agent

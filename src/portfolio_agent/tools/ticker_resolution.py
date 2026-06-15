@@ -1,12 +1,8 @@
-"""Tools for resolving company names to stock ticker symbols."""
+"""Tools for resolving company names to stock ticker symbols using yfinance search."""
 
 import yfinance as yf
-from typing import Optional, List, Dict
-from portfolio_agent.tools.retry_utils import yfinance_retry
-from portfolio_agent.tools.yfinance_utils import create_yf_ticker
 
-
-# Common company name to ticker mappings for quick resolution
+# Common company name to ticker mappings for quick resolution without API calls
 COMMON_TICKERS = {
     "apple": "AAPL",
     "microsoft": "MSFT",
@@ -47,7 +43,6 @@ COMMON_TICKERS = {
 }
 
 
-@yfinance_retry
 def resolve_ticker(query: str) -> dict:
     """
     Converts natural language stock queries to ticker symbols.
@@ -79,7 +74,7 @@ def resolve_ticker(query: str) -> dict:
         if len(potential_ticker) <= 5 and potential_ticker.isalpha():
             # Try to validate it's a real ticker
             try:
-                stock = create_yf_ticker(potential_ticker)
+                stock = yf.Ticker(potential_ticker)
                 info = stock.info
                 if info and 'symbol' in info:
                     company_name = info.get('longName', info.get('shortName', potential_ticker))
@@ -97,9 +92,13 @@ def resolve_ticker(query: str) -> dict:
         # Check common mappings first
         for name, ticker in COMMON_TICKERS.items():
             if name in query_lower or query_lower in name:
-                stock = create_yf_ticker(ticker)
-                info = stock.info
-                company_name = info.get('longName', info.get('shortName', ticker))
+                try:
+                    # Retrieve the cached ticker info
+                    stock = yf.Ticker(ticker)
+                    info = stock.info
+                    company_name = info.get('longName', info.get('shortName', ticker))
+                except:
+                    company_name = ticker
                 print(f"--- Tool: Found in common mappings: {ticker} ({company_name}) ---")
                 return {
                     "status": "success",
@@ -109,41 +108,30 @@ def resolve_ticker(query: str) -> dict:
                     "alternatives": []
                 }
         
-        # Use yfinance search for more complex queries
-        # Note: yfinance doesn't have a built-in search, so we'll try a heuristic approach
-        # We'll attempt to extract potential company names and validate
-        
-        # Try the cleaned query as a company name directly
-        potential_matches = []
-        
-        # Split into words and try each as potential ticker or company name
-        words = query_lower.split()
-        for word in words:
-            if len(word) > 2:  # Skip very short words
-                ticker_candidate = word.upper()
-                try:
-                    stock = create_yf_ticker(ticker_candidate)
-                    info = stock.info
-                    if info and 'symbol' in info:
-                        potential_matches.append({
-                            "ticker": ticker_candidate,
-                            "company_name": info.get('longName', info.get('shortName', ticker_candidate)),
-                            "confidence": 0.7
-                        })
-                except:
-                    continue
-        
-        if potential_matches:
-            # Return the first match
-            best_match = potential_matches[0]
-            alternatives = potential_matches[1:] if len(potential_matches) > 1 else []
+        # Use native yfinance search for fallback
+        print(f"--- Tool: Querying yf.Search for '{query_lower}' ---")
+        search = yf.Search(query_lower)
+        if search.quotes:
+            best_match = search.quotes[0]
+            ticker = best_match.get("symbol")
+            company_name = best_match.get("shortname", best_match.get("longname", best_match.get("symbol")))
             
-            print(f"--- Tool: Found potential match: {best_match['ticker']} ---")
+            # Extract alternatives
+            alternatives = []
+            for q in search.quotes[1:5]:
+                if "symbol" in q:
+                    alternatives.append({
+                        "ticker": q["symbol"],
+                        "company_name": q.get("shortname", q.get("longname", q["symbol"])),
+                        "confidence": 0.8
+                    })
+            
+            print(f"--- Tool: Found match via yf.Search: {ticker} ({company_name}) ---")
             return {
                 "status": "success",
-                "ticker": best_match["ticker"],
-                "company_name": best_match["company_name"],
-                "confidence": best_match["confidence"],
+                "ticker": ticker,
+                "company_name": company_name,
+                "confidence": 0.9,
                 "alternatives": alternatives
             }
         
@@ -164,7 +152,6 @@ def resolve_ticker(query: str) -> dict:
         }
 
 
-@yfinance_retry
 def validate_ticker(ticker: str) -> dict:
     """
     Validates that a ticker symbol exists and is tradable.
@@ -178,7 +165,7 @@ def validate_ticker(ticker: str) -> dict:
     print(f"--- Tool: validate_ticker called for: {ticker} ---")
     
     try:
-        stock = create_yf_ticker(ticker)
+        stock = yf.Ticker(ticker)
         info = stock.info
         
         if not info or 'symbol' not in info:

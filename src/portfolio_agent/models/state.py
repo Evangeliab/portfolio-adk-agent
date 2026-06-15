@@ -3,7 +3,7 @@
 from typing import Optional, Dict
 from pydantic import BaseModel, Field
 from portfolio_agent.models.analysis import FinancialMetrics, TechnicalIndicators, NewsSentiment
-from portfolio_agent.models.reports import InvestmentReport
+from portfolio_agent.models.report import InvestmentReport
 
 
 class ResearchSessionState(BaseModel):

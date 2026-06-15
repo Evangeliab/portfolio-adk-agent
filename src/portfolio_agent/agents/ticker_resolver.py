@@ -3,7 +3,7 @@
 import logging
 from google.adk.agents import Agent
 from portfolio_agent.config.settings import settings
-from portfolio_agent.tools.ticker_resolver import resolve_ticker, validate_ticker
+from portfolio_agent.tools.ticker_resolution import resolve_ticker, validate_ticker
 from portfolio_agent.prompts.loader import load_prompt
 
 

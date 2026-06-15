@@ -1,6 +1,5 @@
 """Pydantic models for stock data and company information."""
 
-from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 

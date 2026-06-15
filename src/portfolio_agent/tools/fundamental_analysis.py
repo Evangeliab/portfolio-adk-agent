@@ -1,21 +1,16 @@
-"""Tools for calculating financial metrics and ratios."""
+"""Tools for calculating financial metrics and ratios with caching."""
 
-import yfinance as yf
 from typing import Optional
 from portfolio_agent.models.analysis import FinancialMetrics
-from portfolio_agent.tools.retry_utils import yfinance_retry
-from portfolio_agent.tools.yfinance_utils import create_yf_ticker
-from portfolio_agent.tools.cache_utils import ttl_cache
 
 
-@yfinance_retry
-@ttl_cache(seconds=300, maxsize=128)
-def calculate_valuation_ratios(ticker: str) -> dict:
+def calculate_valuation_ratios(ticker: str, info: Optional[dict] = None) -> dict:
     """
     Calculates valuation ratios (P/E, P/B, P/S, PEG, EV ratios).
     
     Args:
         ticker (str): Stock ticker symbol (e.g., "AAPL")
+        info (dict, optional): Pre-fetched company info dictionary. If None, retrieves from cache.
     
     Returns:
         dict: Dictionary with 'status' and valuation metrics
@@ -23,8 +18,9 @@ def calculate_valuation_ratios(ticker: str) -> dict:
     print(f"--- Tool: calculate_valuation_ratios called for ticker: {ticker} ---")
     
     try:
-        stock = create_yf_ticker(ticker)
-        info = stock.info
+        if info is None:
+            from portfolio_agent.tools.market_data import _get_ticker_info
+            info = _get_ticker_info(ticker)
         
         metrics = {
             "ticker": ticker.upper(),
@@ -52,14 +48,13 @@ def calculate_valuation_ratios(ticker: str) -> dict:
         }
 
 
-@yfinance_retry
-@ttl_cache(seconds=300, maxsize=128)
-def calculate_profitability_metrics(ticker: str) -> dict:
+def calculate_profitability_metrics(ticker: str, info: Optional[dict] = None) -> dict:
     """
     Calculates profitability metrics (margins, ROA, ROE).
     
     Args:
         ticker (str): Stock ticker symbol (e.g., "AAPL")
+        info (dict, optional): Pre-fetched company info dictionary. If None, retrieves from cache.
     
     Returns:
         dict: Dictionary with 'status' and profitability metrics
@@ -67,8 +62,9 @@ def calculate_profitability_metrics(ticker: str) -> dict:
     print(f"--- Tool: calculate_profitability_metrics called for ticker: {ticker} ---")
     
     try:
-        stock = create_yf_ticker(ticker)
-        info = stock.info
+        if info is None:
+            from portfolio_agent.tools.market_data import _get_ticker_info
+            info = _get_ticker_info(ticker)
         
         metrics = {
             "ticker": ticker.upper(),
@@ -99,14 +95,13 @@ def calculate_profitability_metrics(ticker: str) -> dict:
         }
 
 
-@yfinance_retry
-@ttl_cache(seconds=300, maxsize=128)
-def calculate_growth_metrics(ticker: str) -> dict:
+def calculate_growth_metrics(ticker: str, info: Optional[dict] = None) -> dict:
     """
     Calculates growth metrics (revenue growth, earnings growth).
     
     Args:
         ticker (str): Stock ticker symbol (e.g., "AAPL")
+        info (dict, optional): Pre-fetched company info dictionary. If None, retrieves from cache.
     
     Returns:
         dict: Dictionary with 'status' and growth metrics
@@ -114,8 +109,9 @@ def calculate_growth_metrics(ticker: str) -> dict:
     print(f"--- Tool: calculate_growth_metrics called for ticker: {ticker} ---")
     
     try:
-        stock = create_yf_ticker(ticker)
-        info = stock.info
+        if info is None:
+            from portfolio_agent.tools.market_data import _get_ticker_info
+            info = _get_ticker_info(ticker)
         
         metrics = {
             "ticker": ticker.upper(),
@@ -163,10 +159,13 @@ def get_comprehensive_financial_metrics(ticker: str) -> dict:
     print(f"--- Tool: get_comprehensive_financial_metrics called for ticker: {ticker} ---")
     
     try:
-        # Get all metrics
-        valuation = calculate_valuation_ratios(ticker)
-        profitability = calculate_profitability_metrics(ticker)
-        growth = calculate_growth_metrics(ticker)
+        from portfolio_agent.tools.market_data import _get_ticker_info
+        info = _get_ticker_info(ticker)
+        
+        # Get all metrics using pre-fetched cached info
+        valuation = calculate_valuation_ratios(ticker, info)
+        profitability = calculate_profitability_metrics(ticker, info)
+        growth = calculate_growth_metrics(ticker, info)
         
         # Check for errors
         if valuation.get("status") == "error":

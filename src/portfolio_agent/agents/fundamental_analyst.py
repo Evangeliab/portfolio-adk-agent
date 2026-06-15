@@ -4,7 +4,7 @@ import logging
 from google.adk.agents import Agent
 from portfolio_agent.config.settings import settings
 from portfolio_agent.tools.market_data import get_financial_statements
-from portfolio_agent.tools.financial_calc import (
+from portfolio_agent.tools.fundamental_analysis import (
     calculate_valuation_ratios,
     calculate_profitability_metrics,
     calculate_growth_metrics,
