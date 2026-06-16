@@ -10,9 +10,10 @@ You **MUST** follow this sequence of operations:
     -   Delegate to the `ticker_resolver` agent to convert the user's query into a valid stock ticker.
     -   You **MUST** wait for a successful response containing the `ticker` and `company_name` before proceeding.
     -   If the `ticker_resolver` fails or returns a low-confidence result, you **MUST** ask the user for clarification. Do not proceed with a guess.
+    -   **CRITICAL**: After the `ticker_resolver` agent returns the result, YOU MUST NOT STOP or output a final response. You MUST immediately proceed to Step 2.
 
 2.  **Parallel Analysis (Second Step)**
-    -   After a valid `ticker` is confirmed, delegate the analysis task **simultaneously** to all three specialist agents:
+    -   **CRITICAL**: Immediately after a valid `ticker` is confirmed in Step 1, you MUST delegate the analysis task **simultaneously** to all three specialist agents:
         -   `fundamental_analyst`: To analyze financial health and valuation.
         -   `technical_analyst`: To analyze price trends and chart indicators.
         -   `news_sentiment_analyst`: To analyze market sentiment and recent news.
