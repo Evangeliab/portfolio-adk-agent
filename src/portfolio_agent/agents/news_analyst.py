@@ -19,12 +19,16 @@ def create_news_sentiment_analyst() -> Agent:
         Agent: Configured news sentiment analyst agent with Google Search grounding
     """
     
-    instruction = load_prompt("news_analyst.jinja")
+    instruction = load_prompt(
+        "news_analyst.jinja",
+        enable_google_search=settings.ENABLE_GOOGLE_SEARCH_GROUNDING
+    )
     
-    tools = [search_company_news]
     if settings.ENABLE_GOOGLE_SEARCH_GROUNDING:
         print("🔍 News Analyst: Enabling Google Search Grounding tool")
-        tools.append(google_search)
+        tools = [google_search]
+    else:
+        tools = [search_company_news]
         
     agent = Agent(
         name="news_sentiment_analyst",
@@ -38,3 +42,4 @@ def create_news_sentiment_analyst() -> Agent:
     )
     
     return agent
+
