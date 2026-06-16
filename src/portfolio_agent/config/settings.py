@@ -29,9 +29,9 @@ class Settings:
     GOOGLE_CLOUD_LOCATION: str = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     
     # Model Configuration
-    # Defaults to gemini-2.0-flash but allows environment overrides
-    SPECIALIST_MODEL: str = os.getenv("SPECIALIST_MODEL", "gemini-2.0-flash")
-    COORDINATOR_MODEL: str = os.getenv("COORDINATOR_MODEL", "gemini-2.0-flash")
+    # Defaults to gemini-2.5-flash but allows environment overrides
+    SPECIALIST_MODEL: str = os.getenv("SPECIALIST_MODEL", "gemini-2.5-flash")
+    COORDINATOR_MODEL: str = os.getenv("COORDINATOR_MODEL", "gemini-2.5-flash")
     
     # Session Configuration
     APP_NAME: str = "portfolio_research_agent"

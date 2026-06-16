@@ -140,8 +140,8 @@ class PortfolioResearchAgent:
                                     # Print agent activity
                                     print(f"🤖 [{event.author}]: {text[:150]}...")
                 
-                # Capture final response
-                if event.is_final_response():
+                # Capture final response - ONLY from the root coordinator, not sub-agents
+                if event.is_final_response() and event.author == 'research_coordinator':
                     if event.content and event.content.parts:
                         final_response_text = event.content.parts[0].text
                     elif event.actions and event.actions.escalate:
